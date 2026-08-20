@@ -5,13 +5,6 @@ The official PyTorch implementation for the following paper:
 > Kaede Shiohara and Toshihiko Yamasaki,  
 > *CVPR 2022 Oral*
 
-
-# License
-Our code and pretrained model are freely available for research purpose.  
-For commercial use: 
-- A license agreement is required. 
-- See the [license](https://github.com/mapooon/SelfBlendedImages/blob/master/LICENSE) for more details and contact the author [Kaede Shiohara](mailto:shiohara@cvm.t.u-tokyo.ac.jp).
-
 # News
 3.13.2026: We have released a new paper on reference-based deepfake detection accepted to CVPR2026 Findings🎉🎉🎉  
 [**ExposeAnyone: Personalized Audio-to-Expression Diffusion Models are Robust Zero-Shot Face Forgery Detectors**](https://mapooon.github.io/ExposeAnyonePage/)
