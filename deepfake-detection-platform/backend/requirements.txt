@@ -1,0 +1,14 @@
+# SelfBlendedImages inference service (CPU or CUDA PyTorch installation)
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+python-multipart>=0.0.9
+torch==2.13.0
+torchvision==0.28.0
+numpy>=1.26
+opencv-python>=4.10
+Pillow>=10
+tqdm>=4.66
+efficientnet-pytorch>=0.7.1
+albumentations>=1.4
+# Install this after the main requirements with --no-deps; its published metadata
+# pins an obsolete Torch release despite working with the pinned stack above.
