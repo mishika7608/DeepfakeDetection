@@ -114,6 +114,16 @@ export const SIGNAL_LIBRARY: {
 
 ]
 
+const SIGNAL_BY_KEY = Object.fromEntries(
+  SIGNAL_LIBRARY.map((signal) => [
+    signal.key,
+    signal,
+  ])
+) as Record<
+  SignalKey,
+  (typeof SIGNAL_LIBRARY)[number]
+>
+
 /**
  * Mock analysis. Deterministic so the experience is calm and repeatable.
  * Replace this with a call to the real detection backend later — the shape of
@@ -125,7 +135,7 @@ export function getMockAnalysis(): AnalysisResult {
       key: 'ai-generation',
       label: 'AI generation',
       icon: Sparkles,
-      summary: SIGNAL_LIBRARY[0].summary,
+      summary: SIGNAL_BY_KEY['ai-generation'].summary, //SIGNAL_LIBRARY[0].summary,
       score: 91,
       status: 'clear',
       findings: [
@@ -149,7 +159,7 @@ export function getMockAnalysis(): AnalysisResult {
       key: 'semantic',
       label: 'Semantic analysis',
       icon: Telescope,
-      summary: SIGNAL_LIBRARY[2].summary,
+      summary: SIGNAL_BY_KEY.semantic.summary,//SIGNAL_LIBRARY[2].summary,
       score: 84,
       status: 'clear',
       findings: [
@@ -185,7 +195,7 @@ export function getMockAnalysis(): AnalysisResult {
       key: 'metadata',
       label: 'Metadata',
       icon: FileText,
-      summary: SIGNAL_LIBRARY[5].summary,
+      summary:SIGNAL_BY_KEY.metadata.summary,// SIGNAL_LIBRARY[5].summary,
       score: 62,
       status: 'minor',
       findings: [
@@ -897,7 +907,8 @@ const summary =
         icon: Sparkles,
 
         summary:
-          SIGNAL_LIBRARY[0].summary,
+          // SIGNAL_LIBRARY[0].summary,
+          SIGNAL_BY_KEY['ai-generation'].summary,
 
         score,
 
@@ -932,7 +943,7 @@ const summary =
         icon: Telescope,
 
         summary:
-          SIGNAL_LIBRARY[2].summary,
+          SIGNAL_BY_KEY.semantic.summary,
 
         score:
           semanticAvailable
@@ -982,7 +993,8 @@ const summary =
         icon: FileText,
 
         summary:
-          SIGNAL_LIBRARY[5].summary,
+          // SIGNAL_LIBRARY[5].summary,
+          SIGNAL_BY_KEY.metadata.summary,
 
         // Metadata risk converted to an
         // authenticity-style signal score.
@@ -1028,7 +1040,8 @@ const summary =
         icon: SearchCheck,
 
         summary:
-          SIGNAL_LIBRARY[6].summary,
+          // SIGNAL_LIBRARY[6].summary,
+          SIGNAL_BY_KEY['reverse-search'].summary,
 
         // This is an evidence signal.
         //
@@ -1059,7 +1072,8 @@ const summary =
         icon: BadgeCheck,
 
         summary:
-          SIGNAL_LIBRARY[7].summary,
+          // SIGNAL_LIBRARY[7].summary,
+          SIGNAL_BY_KEY.c2pa.summary,
 
         /*
         * IMPORTANT:
