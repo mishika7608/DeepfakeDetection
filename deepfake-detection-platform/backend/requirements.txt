@@ -10,5 +10,6 @@ Pillow>=10
 tqdm>=4.66
 efficientnet-pytorch>=0.7.1
 albumentations>=1.4
+Pillow
 # Install this after the main requirements with --no-deps; its published metadata
 # pins an obsolete Torch release despite working with the pinned stack above.

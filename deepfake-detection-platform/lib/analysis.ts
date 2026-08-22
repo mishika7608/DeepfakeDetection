@@ -185,26 +185,281 @@ export function getMockAnalysis(): AnalysisResult {
 }
 
 /** Calls the local SelfBlendedImages service and adapts its score for the UI. */
-export async function getDetectorAnalysis(file: File): Promise<AnalysisResult> {
+// export async function getDetectorAnalysis(file: File): Promise<AnalysisResult> {
+//   const form = new FormData()
+//   form.append('file', file)
+//   const baseUrl = process.env.NEXT_PUBLIC_DETECTOR_API_URL ?? 'http://localhost:8000'
+//   const response = await fetch(`${baseUrl}/analyze`, { method: 'POST', body: form })
+//   const payload = await response.json().catch(() => ({}))
+//   if (!response.ok) throw new Error(payload.detail ?? 'The detector service is unavailable.')
+//   const score = payload.authenticity as number
+//   const fake = payload.fakeness as number
+//   const flagged = fake >= 0.5
+//   return {
+//     score,
+//     risk: fake >= 0.7 ? 'elevated' : fake >= 0.4 ? 'moderate' : 'low',
+//     verdict: flagged ? 'Possible deepfake detected' : 'Likely authentic',
+//     summary: `SelfBlendedImages analyzed the detected face${file.type.startsWith('video/') ? 's across sampled frames' : ''}. This score is a model estimate, not a definitive determination.`,
+//     signals: [{
+//       key: 'ai-generation', label: 'SelfBlendedImages detector', icon: Sparkles,
+//       summary: SIGNAL_LIBRARY[0].summary, score, status: flagged ? 'flag' : 'clear',
+//       findings: [`SBI fakeness score: ${(fake * 100).toFixed(1)}%.`, flagged ? 'The detector found manipulation-like facial artifacts.' : 'The detector found no strong facial manipulation artifacts.'],
+//     }],
+//   }
+// }
+
+export async function getDetectorAnalysis(
+  file: File
+): Promise<AnalysisResult> {
+
   const form = new FormData()
+
   form.append('file', file)
-  const baseUrl = process.env.NEXT_PUBLIC_DETECTOR_API_URL ?? 'http://localhost:8000'
-  const response = await fetch(`${baseUrl}/analyze`, { method: 'POST', body: form })
-  const payload = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(payload.detail ?? 'The detector service is unavailable.')
-  const score = payload.authenticity as number
-  const fake = payload.fakeness as number
-  const flagged = fake >= 0.5
+
+  const baseUrl =
+    process.env.NEXT_PUBLIC_DETECTOR_API_URL ??
+    'http://localhost:8000'
+
+  const response = await fetch(
+    `${baseUrl}/analyze`,
+    {
+      method: 'POST',
+      body: form,
+    }
+  )
+
+  const payload = await response
+    .json()
+    .catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(
+      payload.detail ??
+      'The detector service is unavailable.'
+    )
+  }
+
+  // =====================================================
+  // EXISTING SBI RESULT
+  // =====================================================
+
+  const score =
+    Number(payload.authenticity ?? 0)
+
+  const fake =
+    Number(payload.fakeness ?? 0)
+
+  // =====================================================
+  // METADATA RESULT
+  // =====================================================
+
+  const metadata =
+    payload.metadata ?? {}
+
+  const metadataRisk =
+    Number(metadata.risk_score ?? 0)
+
+  const metadataFindings =
+    Array.isArray(metadata.findings)
+      ? metadata.findings
+      : []
+
+  const metadataWarnings =
+    Array.isArray(metadata.warnings)
+      ? metadata.warnings
+      : []
+
+  // =====================================================
+  // FORENSIC RESULT
+  // =====================================================
+
+  const forensic =
+    payload.forensic_analysis ?? {}
+
+  const finalAuthenticity =
+    Number(
+      forensic.final_authenticity ??
+      score
+    )
+
+  const finalRisk =
+    Number(
+      forensic.final_risk ??
+      (100 - score)
+    )
+
+  // =====================================================
+  // SBI STATUS
+  // =====================================================
+
+  const aiFlagged =
+    fake >= 0.5
+
+  const aiStatus: SignalStatus =
+    fake >= 0.7
+      ? 'flag'
+      : fake >= 0.4
+        ? 'minor'
+        : 'clear'
+
+  // =====================================================
+  // METADATA STATUS
+  // =====================================================
+
+  const metadataStatus: SignalStatus =
+    metadataRisk >= 50
+      ? 'flag'
+      : metadataRisk >= 20
+        ? 'minor'
+        : 'clear'
+
+  // =====================================================
+  // METADATA FINDINGS FOR UI
+  // =====================================================
+
+  const formattedMetadataFindings = [
+    ...metadataFindings,
+    ...metadataWarnings.map(
+      (warning: string) =>
+        `Warning: ${warning}`
+    ),
+  ]
+
+  if (formattedMetadataFindings.length === 0) {
+    formattedMetadataFindings.push(
+      'No significant metadata findings were detected.'
+    )
+  }
+
+  // =====================================================
+  // FINAL RISK
+  // =====================================================
+
+  const risk: RiskLevel =
+    finalRisk >= 70
+      ? 'elevated'
+      : finalRisk >= 40
+        ? 'moderate'
+        : 'low'
+
+  // =====================================================
+  // VERDICT
+  // =====================================================
+
+  const verdict =
+    finalRisk >= 70
+      ? 'Possible manipulation detected'
+      : finalRisk >= 40
+        ? 'Requires further review'
+        : 'Likely authentic'
+
+  // =====================================================
+  // SUMMARY
+  // =====================================================
+
+  const summary =
+    `AI detection estimates ${score.toFixed(1)}% authenticity. ` +
+    `Metadata analysis reports ${metadataRisk.toFixed(0)}% metadata risk. ` +
+    `The combined forensic assessment estimates ` +
+    `${finalAuthenticity.toFixed(1)}% authenticity.`
+
+  // =====================================================
+  // RETURN UI MODEL
+  // =====================================================
+
   return {
-    score,
-    risk: fake >= 0.7 ? 'elevated' : fake >= 0.4 ? 'moderate' : 'low',
-    verdict: flagged ? 'Possible deepfake detected' : 'Likely authentic',
-    summary: `SelfBlendedImages analyzed the detected face${file.type.startsWith('video/') ? 's across sampled frames' : ''}. This score is a model estimate, not a definitive determination.`,
-    signals: [{
-      key: 'ai-generation', label: 'SelfBlendedImages detector', icon: Sparkles,
-      summary: SIGNAL_LIBRARY[0].summary, score, status: flagged ? 'flag' : 'clear',
-      findings: [`SBI fakeness score: ${(fake * 100).toFixed(1)}%.`, flagged ? 'The detector found manipulation-like facial artifacts.' : 'The detector found no strong facial manipulation artifacts.'],
-    }],
+
+    // IMPORTANT:
+    // The main meter now represents the
+    // combined forensic authenticity.
+    score: finalAuthenticity,
+
+    risk,
+
+    verdict,
+
+    summary,
+
+    signals: [
+
+      // -------------------------------------------------
+      // AI DETECTION
+      // -------------------------------------------------
+
+      {
+        key: 'ai-generation',
+
+        label: 'SelfBlendedImages detector',
+
+        icon: Sparkles,
+
+        summary:
+          SIGNAL_LIBRARY[0].summary,
+
+        score,
+
+        status: aiStatus,
+
+        findings: [
+
+          `SBI fakeness score: ${(fake * 100).toFixed(1)}%.`,
+
+          aiFlagged
+            ? 'The detector found manipulation-like facial artifacts.'
+            : 'The detector found no strong facial manipulation artifacts.',
+
+          `AI model authenticity: ${score.toFixed(1)}%.`,
+
+        ],
+
+      },
+
+      // -------------------------------------------------
+      // METADATA
+      // -------------------------------------------------
+
+      {
+        key: 'metadata',
+
+        label: 'Metadata analysis',
+
+        icon: FileText,
+
+        summary:
+          'Reviews capture data, software traces, timestamps, and file information for forensic indicators.',
+
+        // Signal score is authenticity,
+        // so convert metadata risk → authenticity.
+        score: Math.max(
+          0,
+          Math.min(
+            100,
+            100 - metadataRisk
+          )
+        ),
+
+        status: metadataStatus,
+
+        findings: [
+
+          `Metadata risk: ${metadataRisk.toFixed(0)}%.`,
+
+          ...formattedMetadataFindings,
+
+          metadata.format
+            ? `File format: ${metadata.format}.`
+            : '',
+
+          metadata.width && metadata.height
+            ? `Dimensions: ${metadata.width} × ${metadata.height}.`
+            : '',
+
+        ].filter(Boolean),
+
+      },
+
+    ],
+
   }
 }
 

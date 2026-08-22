@@ -11,6 +11,8 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from retinaface.pre_trained_models import get_model
 
+from metadata import analyze_metadata
+
 ROOT = Path(__file__).resolve().parents[2]
 INFERENCE_DIR = ROOT / "SelfBlendedImages-master" / "src" / "inference"
 WEIGHTS = Path(os.getenv("SBI_WEIGHTS", ROOT / "SelfBlendedImages-master" / "weights" / "FFraw.tar"))
@@ -55,20 +57,184 @@ def analyse(path: str, is_video: bool) -> float:
     for index, score in zip(indices, scores, strict=True): frames.setdefault(index, []).append(float(score))
     return float(np.mean([max(values) for values in frames.values()]))
 
+def calculate_forensic_score(
+    ai_authenticity: float,
+    metadata_risk: float,
+) -> dict[str, float]:
+    """
+    Combine the trained AI detector with metadata evidence.
+
+    The SBI model remains the primary signal.
+    Metadata contributes only 20%.
+    """
+
+    ai_risk = 100.0 - ai_authenticity
+
+    final_risk = (
+        0.80 * ai_risk +
+        0.20 * metadata_risk
+    )
+
+    final_risk = round(
+        max(0.0, min(100.0, final_risk)),
+        1,
+    )
+
+    final_authenticity = round(
+        100.0 - final_risk,
+        1,
+    )
+
+    return {
+        "final_risk": final_risk,
+        "final_authenticity": final_authenticity,
+    }
+
+
 @app.get("/health")
 def health() -> dict[str, object]:
     return {"ready": WEIGHTS.is_file(), "device": str(device), "weights": str(WEIGHTS)}
 
+
 @app.post("/analyze")
 async def analyze(file: UploadFile = File(...)) -> dict[str, object]:
+
     media_type = file.content_type or ""
-    if not (media_type.startswith("image/") or media_type.startswith("video/")):
-        raise HTTPException(415, "Upload an image or video file.")
-    suffix = Path(file.filename or "upload").suffix or (".mp4" if media_type.startswith("video/") else ".jpg")
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temporary:
-        temporary.write(await file.read()); temporary_path = temporary.name
+
+    if not (
+        media_type.startswith("image/")
+        or media_type.startswith("video/")
+    ):
+        raise HTTPException(
+            415,
+            "Upload an image or video file."
+        )
+
+    suffix = (
+        Path(file.filename or "upload").suffix
+        or (
+            ".mp4"
+            if media_type.startswith("video/")
+            else ".jpg"
+        )
+    )
+
+    with tempfile.NamedTemporaryFile(
+        suffix=suffix,
+        delete=False
+    ) as temporary:
+
+        temporary.write(await file.read())
+
+        temporary_path = temporary.name
+
     try:
-        fakeness = analyse(temporary_path, media_type.startswith("video/"))
-        return {"fakeness": round(fakeness, 4), "authenticity": round((1 - fakeness) * 100, 1)}
+
+        # =====================================================
+        # 1. EXISTING SELFBLENDEDIMAGES MODEL
+        # =====================================================
+
+        fakeness = analyse(
+            temporary_path,
+            media_type.startswith("video/")
+        )
+
+        ai_authenticity = round(
+            (1 - fakeness) * 100,
+            1
+        )
+
+        # =====================================================
+        # 2. METADATA ANALYSIS
+        # =====================================================
+
+        # Metadata is meaningful for images.
+        # For videos we safely skip it for now.
+        if media_type.startswith("image/"):
+
+            metadata = analyze_metadata(
+                temporary_path
+            )
+
+        else:
+
+            metadata = {
+                "available": False,
+                "format": None,
+                "width": None,
+                "height": None,
+                "mode": None,
+                "sha256": None,
+                "exif": {},
+                "findings": [
+                    "Metadata analysis is currently available for images only."
+                ],
+                "warnings": [],
+                "risk_score": 0,
+            }
+
+        # =====================================================
+        # 3. EVIDENCE FUSION
+        # =====================================================
+
+        forensic = calculate_forensic_score(
+            ai_authenticity=ai_authenticity,
+            metadata_risk=float(
+                metadata.get("risk_score", 0)
+            ),
+        )
+
+        # =====================================================
+        # 4. FINAL API RESPONSE
+        # =====================================================
+
+        return {
+
+            # Original SBI values
+            "fakeness": round(fakeness, 4),
+
+            "authenticity": ai_authenticity,
+
+            # Metadata findings
+            "metadata": metadata,
+
+            # Combined forensic assessment
+            "forensic_analysis": {
+
+                "metadata_risk": metadata.get(
+                    "risk_score",
+                    0
+                ),
+
+                "final_risk": forensic[
+                    "final_risk"
+                ],
+
+                "final_authenticity": forensic[
+                    "final_authenticity"
+                ],
+
+            },
+        }
+
     finally:
-        Path(temporary_path).unlink(missing_ok=True)
+
+        Path(
+            temporary_path
+        ).unlink(
+            missing_ok=True
+        )
+
+# @app.post("/analyze")
+# async def analyze(file: UploadFile = File(...)) -> dict[str, object]:
+#     media_type = file.content_type or ""
+#     if not (media_type.startswith("image/") or media_type.startswith("video/")):
+#         raise HTTPException(415, "Upload an image or video file.")
+#     suffix = Path(file.filename or "upload").suffix or (".mp4" if media_type.startswith("video/") else ".jpg")
+#     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temporary:
+#         temporary.write(await file.read()); temporary_path = temporary.name
+#     try:
+#         fakeness = analyse(temporary_path, media_type.startswith("video/"))
+#         return {"fakeness": round(fakeness, 4), "authenticity": round((1 - fakeness) * 100, 1)}
+#     finally:
+#         Path(temporary_path).unlink(missing_ok=True)
