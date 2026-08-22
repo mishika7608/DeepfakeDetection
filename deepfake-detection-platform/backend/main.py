@@ -10,7 +10,7 @@ import torch
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from retinaface.pre_trained_models import get_model
-
+from reverse_search import reverse_search
 from metadata import analyze_metadata
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -124,97 +124,119 @@ async def analyze(file: UploadFile = File(...)) -> dict[str, object]:
         delete=False
     ) as temporary:
 
-        temporary.write(await file.read())
+        temporary.write(
+            await file.read()
+        )
 
         temporary_path = temporary.name
 
     try:
 
-        # =====================================================
+        # ==================================================
         # 1. EXISTING SELFBLENDEDIMAGES MODEL
-        # =====================================================
+        # ==================================================
 
         fakeness = analyse(
             temporary_path,
             media_type.startswith("video/")
         )
 
-        ai_authenticity = round(
+        authenticity = round(
             (1 - fakeness) * 100,
             1
         )
 
-        # =====================================================
-        # 2. METADATA ANALYSIS
-        # =====================================================
+        # ==================================================
+        # 2. METADATA
+        # ==================================================
 
-        # Metadata is meaningful for images.
-        # For videos we safely skip it for now.
         if media_type.startswith("image/"):
 
-            metadata = analyze_metadata(
-                temporary_path
-            )
+            try:
+
+                metadata = analyze_metadata(
+                    temporary_path
+                )
+
+            except Exception as exc:
+
+                metadata = {
+                    "available": False,
+                    "findings": [
+                        "Metadata analysis failed."
+                    ],
+                    "warnings": [
+                        str(exc)
+                    ],
+                    "risk_score": 0,
+                }
 
         else:
 
             metadata = {
                 "available": False,
-                "format": None,
-                "width": None,
-                "height": None,
-                "mode": None,
-                "sha256": None,
-                "exif": {},
                 "findings": [
-                    "Metadata analysis is currently available for images only."
+                    "Metadata analysis is currently "
+                    "available for images only."
                 ],
                 "warnings": [],
                 "risk_score": 0,
             }
 
-        # =====================================================
-        # 3. EVIDENCE FUSION
-        # =====================================================
+        # ==================================================
+        # 3. REVERSE IMAGE SEARCH
+        # ==================================================
 
-        forensic = calculate_forensic_score(
-            ai_authenticity=ai_authenticity,
-            metadata_risk=float(
-                metadata.get("risk_score", 0)
-            ),
-        )
+        if media_type.startswith("image/"):
 
-        # =====================================================
-        # 4. FINAL API RESPONSE
-        # =====================================================
+            reverse_search_result = reverse_search(
+                temporary_path
+            )
+
+        else:
+
+            reverse_search_result = {
+                "available": False,
+                "status": "unsupported_media",
+                "matches_found": 0,
+                "exact_matches": [],
+                "visual_matches": [],
+                "findings": [
+                    "Reverse image search is currently "
+                    "available for images only."
+                ],
+                "error": None,
+            }
+
+        # ==================================================
+        # 4. RETURN EVERYTHING
+        # ==================================================
 
         return {
 
-            # Original SBI values
-            "fakeness": round(fakeness, 4),
+            # ----------------------------------------------
+            # EXISTING SBI RESULT
+            # ----------------------------------------------
 
-            "authenticity": ai_authenticity,
+            "fakeness": round(
+                fakeness,
+                4
+            ),
 
-            # Metadata findings
+            "authenticity": authenticity,
+
+            # ----------------------------------------------
+            # METADATA
+            # ----------------------------------------------
+
             "metadata": metadata,
 
-            # Combined forensic assessment
-            "forensic_analysis": {
+            # ----------------------------------------------
+            # REVERSE SEARCH
+            # ----------------------------------------------
 
-                "metadata_risk": metadata.get(
-                    "risk_score",
-                    0
-                ),
+            "reverse_search": reverse_search_result,
 
-                "final_risk": forensic[
-                    "final_risk"
-                ],
-
-                "final_authenticity": forensic[
-                    "final_authenticity"
-                ],
-
-            },
         }
 
     finally:
@@ -224,6 +246,134 @@ async def analyze(file: UploadFile = File(...)) -> dict[str, object]:
         ).unlink(
             missing_ok=True
         )
+# @app.post("/analyze")
+# async def analyze(file: UploadFile = File(...)) -> dict[str, object]:
+
+#     media_type = file.content_type or ""
+
+#     if not (
+#         media_type.startswith("image/")
+#         or media_type.startswith("video/")
+#     ):
+#         raise HTTPException(
+#             415,
+#             "Upload an image or video file."
+#         )
+
+#     suffix = (
+#         Path(file.filename or "upload").suffix
+#         or (
+#             ".mp4"
+#             if media_type.startswith("video/")
+#             else ".jpg"
+#         )
+#     )
+
+#     with tempfile.NamedTemporaryFile(
+#         suffix=suffix,
+#         delete=False
+#     ) as temporary:
+
+#         temporary.write(await file.read())
+
+#         temporary_path = temporary.name
+
+#     try:
+
+#         # =====================================================
+#         # 1. EXISTING SELFBLENDEDIMAGES MODEL
+#         # =====================================================
+
+#         fakeness = analyse(
+#             temporary_path,
+#             media_type.startswith("video/")
+#         )
+
+#         ai_authenticity = round(
+#             (1 - fakeness) * 100,
+#             1
+#         )
+
+#         # =====================================================
+#         # 2. METADATA ANALYSIS
+#         # =====================================================
+
+#         # Metadata is meaningful for images.
+#         # For videos we safely skip it for now.
+#         if media_type.startswith("image/"):
+
+#             metadata = analyze_metadata(
+#                 temporary_path
+#             )
+
+#         else:
+
+#             metadata = {
+#                 "available": False,
+#                 "format": None,
+#                 "width": None,
+#                 "height": None,
+#                 "mode": None,
+#                 "sha256": None,
+#                 "exif": {},
+#                 "findings": [
+#                     "Metadata analysis is currently available for images only."
+#                 ],
+#                 "warnings": [],
+#                 "risk_score": 0,
+#             }
+
+#         # =====================================================
+#         # 3. EVIDENCE FUSION
+#         # =====================================================
+
+#         forensic = calculate_forensic_score(
+#             ai_authenticity=ai_authenticity,
+#             metadata_risk=float(
+#                 metadata.get("risk_score", 0)
+#             ),
+#         )
+
+#         # =====================================================
+#         # 4. FINAL API RESPONSE
+#         # =====================================================
+
+#         return {
+
+#             # Original SBI values
+#             "fakeness": round(fakeness, 4),
+
+#             "authenticity": ai_authenticity,
+
+#             # Metadata findings
+#             "metadata": metadata,
+
+#             # Combined forensic assessment
+#             "forensic_analysis": {
+
+#                 "metadata_risk": metadata.get(
+#                     "risk_score",
+#                     0
+#                 ),
+
+#                 "final_risk": forensic[
+#                     "final_risk"
+#                 ],
+
+#                 "final_authenticity": forensic[
+#                     "final_authenticity"
+#                 ],
+
+#             },
+#         }
+
+#     finally:
+
+#         Path(
+#             temporary_path
+#         ).unlink(
+#             missing_ok=True
+#         )
 
 # @app.post("/analyze")
 # async def analyze(file: UploadFile = File(...)) -> dict[str, object]:
