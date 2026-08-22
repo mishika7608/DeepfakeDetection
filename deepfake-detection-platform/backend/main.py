@@ -13,6 +13,8 @@ from retinaface.pre_trained_models import get_model
 from reverse_search import reverse_search
 from metadata import analyze_metadata
 from c2pa_analysis import analyze_c2pa
+from semantic_analysis import analyze_semantics
+
 
 ROOT = Path(__file__).resolve().parents[2]
 INFERENCE_DIR = ROOT / "SelfBlendedImages-master" / "src" / "inference"
@@ -238,14 +240,40 @@ async def analyze(file: UploadFile = File(...)) -> dict[str, object]:
             }
 
         # ==================================================
-        # 4. RETURN EVERYTHING
+        # 4. SEMANTIC ANALYSIS
+        # ==================================================
+
+        if media_type.startswith("image/"):
+
+            semantic_result = analyze_semantics(
+                temporary_path
+            )
+
+        else:
+
+            semantic_result = {
+                "available": False,
+                "status": "unsupported_media",
+                "semantic_score": 0.0,
+                "real_score": 0.0,
+                "synthetic_score": 0.0,
+                "margin": 0.0,
+                "findings": [
+                    "Semantic analysis is currently "
+                    "available for images only."
+                ],
+                "warnings": [],
+            }
+
+        # ==================================================
+        # 5. RETURN EVERYTHING
         # ==================================================
 
         return {
 
-            # ----------------------------------------------
-            # EXISTING SBI RESULT
-            # ----------------------------------------------
+            # ==================================================
+            # PRIMARY AI DETECTOR
+            # ==================================================
 
             "fakeness": round(
                 fakeness,
@@ -254,18 +282,17 @@ async def analyze(file: UploadFile = File(...)) -> dict[str, object]:
 
             "authenticity": authenticity,
 
-            # ----------------------------------------------
-            # METADATA
-            # ----------------------------------------------
+            # ==================================================
+            # FORENSIC SIGNALS
+            # ==================================================
 
             "metadata": metadata,
 
-            # ----------------------------------------------
-            # REVERSE SEARCH
-            # ----------------------------------------------
-
             "reverse_search": reverse_search_result,
 
+            "c2pa": c2pa_result,
+
+            "semantic": semantic_result,
         }
 
     finally:

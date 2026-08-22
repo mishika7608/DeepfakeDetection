@@ -11,14 +11,6 @@ import {
   SearchCheck,
 } from 'lucide-react'
 
-// import {
-//   Sparkles,
-//   ScanFace,
-//   Telescope,
-//   ShieldCheck,
-//   SlidersHorizontal,
-//   FileText,
-// } from 'lucide-react'
 
 export type SignalStatus = 'clear' | 'minor' | 'flag'
 
@@ -84,20 +76,20 @@ export const SIGNAL_LIBRARY: {
     summary:
       'Reads the whole scene for small details and physics that quietly do not add up.',
   },
-  {
-    key: 'identity',
-    label: 'Identity verification',
-    icon: ShieldCheck,
-    summary:
-      'Compares the face against reference identity signals to catch swaps and impersonation.',
-  },
-  {
-    key: 'attribute',
-    label: 'Attribute manipulation',
-    icon: SlidersHorizontal,
-    summary:
-      'Detects retouching of age, expression, or features that changes what the media says.',
-  },
+  // {
+  //   key: 'identity',
+  //   label: 'Identity verification',
+  //   icon: ShieldCheck,
+  //   summary:
+  //     'Compares the face against reference identity signals to catch swaps and impersonation.',
+  // },
+  // {
+  //   key: 'attribute',
+  //   label: 'Attribute manipulation',
+  //   icon: SlidersHorizontal,
+  //   summary:
+  //     'Detects retouching of age, expression, or features that changes what the media says.',
+  // },
   {
     key: 'metadata',
     label: 'Metadata',
@@ -114,11 +106,12 @@ export const SIGNAL_LIBRARY: {
   },
   {
     key: 'c2pa',
-    label: 'C2PA Content Credentials',
+    label: 'Content Credentials',
     icon: BadgeCheck,
     summary:
       'Checks cryptographically bound Content Credentials and provenance information embedded in the image.',
   },
+
 ]
 
 /**
@@ -164,30 +157,30 @@ export function getMockAnalysis(): AnalysisResult {
         'Background geometry is coherent with no warping near the subject.',
       ],
     },
-    {
-      key: 'identity',
-      label: 'Identity verification',
-      icon: ShieldCheck,
-      summary: SIGNAL_LIBRARY[3].summary,
-      score: 79,
-      status: 'clear',
-      findings: [
-        'Facial landmarks align with a single, stable identity.',
-        'No blending seams detected around the hairline or jaw.',
-      ],
-    },
-    {
-      key: 'attribute',
-      label: 'Attribute manipulation',
-      icon: SlidersHorizontal,
-      summary: SIGNAL_LIBRARY[4].summary,
-      score: 68,
-      status: 'minor',
-      findings: [
-        'Light smoothing detected around the eyes — consistent with everyday retouching.',
-        'No changes to age, expression, or identifying features.',
-      ],
-    },
+    // {
+    //   key: 'identity',
+    //   label: 'Identity verification',
+    //   icon: ShieldCheck,
+    //   summary: SIGNAL_LIBRARY[3].summary,
+    //   score: 79,
+    //   status: 'clear',
+    //   findings: [
+    //     'Facial landmarks align with a single, stable identity.',
+    //     'No blending seams detected around the hairline or jaw.',
+    //   ],
+    // },
+    // {
+    //   key: 'attribute',
+    //   label: 'Attribute manipulation',
+    //   icon: SlidersHorizontal,
+    //   summary: SIGNAL_LIBRARY[4].summary,
+    //   score: 68,
+    //   status: 'minor',
+    //   findings: [
+    //     'Light smoothing detected around the eyes — consistent with everyday retouching.',
+    //     'No changes to age, expression, or identifying features.',
+    //   ],
+    // },
     {
       key: 'metadata',
       label: 'Metadata',
@@ -784,6 +777,56 @@ const c2paClaimGenerator =
   null
 
   // =====================================================
+// SEMANTIC ANALYSIS
+// =====================================================
+
+const semantic =
+  payload.semantic ?? {}
+
+const semanticAvailable =
+  Boolean(
+    semantic.available
+  )
+
+const semanticScore =
+  Number(
+    semantic.semantic_score ?? 0
+  )
+
+const semanticRealScore =
+  Number(
+    semantic.real_score ?? 0
+  )
+
+const semanticSyntheticScore =
+  Number(
+    semantic.synthetic_score ?? 0
+  )
+
+const semanticMargin =
+  Number(
+    semantic.margin ?? 0
+  )
+
+const semanticFindings =
+  Array.isArray(
+    semantic.findings
+  )
+    ? semantic.findings
+    : []
+
+const semanticWarnings =
+  Array.isArray(
+    semantic.warnings
+  )
+    ? semantic.warnings
+    : []
+
+const semanticStatus =
+  semantic.status ??
+  'clear'
+
+  // =====================================================
   // MAIN RISK
   // =====================================================
 
@@ -807,13 +850,23 @@ const c2paClaimGenerator =
       ? 'Possible deepfake detected'
       : 'Likely authentic'
 
-  const summary =
-    `SelfBlendedImages estimated ${score.toFixed(1)}% authenticity. ` +
-    `Metadata analysis returned ${metadataFindings.length} finding(s). ` +
-    `Reverse image search identified ` +
-    `${exactMatches.length} exact/near-exact and ` +
-    `${visualMatches.length} visual match(es). ` +
-    `These auxiliary signals provide forensic context and do not replace the AI model score.`
+  // const summary =
+  //   `SelfBlendedImages estimated ${score.toFixed(1)}% authenticity. ` +
+  //   `Metadata analysis returned ${metadataFindings.length} finding(s). ` +
+  //   `Reverse image search identified ` +
+  //   `${exactMatches.length} exact/near-exact and ` +
+  //   `${visualMatches.length} visual match(es). ` +
+  //   `These auxiliary signals provide forensic context and do not replace the AI model score.`
+
+const summary =
+  `SelfBlendedImages estimated ${score.toFixed(1)}% authenticity. ` +
+  `Metadata analysis returned ${metadataFindings.length} finding(s). ` +
+  `Reverse image search identified ` +
+  `${exactMatches.length} exact/near-exact and ` +
+  `${visualMatches.length} visual match(es). ` +
+  `Semantic analysis estimated ` +
+  `${semanticScore.toFixed(1)}% real-photo semantic compatibility. ` +
+  `These auxiliary signals provide forensic context and do not replace the AI model score.`
 
   // =====================================================
   // RETURN RESULT
@@ -862,6 +915,57 @@ const c2paClaimGenerator =
             : 'The detector found no strong facial manipulation artifacts.',
 
           `AI model authenticity: ${score.toFixed(1)}%.`,
+
+        ],
+      },
+
+      
+      // =================================================
+      // 5. SEMANTIC ANALYSIS
+      // =================================================
+
+      {
+        key: 'semantic',
+
+        label: 'Semantic analysis',
+
+        icon: Telescope,
+
+        summary:
+          SIGNAL_LIBRARY[2].summary,
+
+        score:
+          semanticAvailable
+            ? semanticScore
+            : 0,
+
+        status:
+          semanticAvailable
+            ? (
+                semanticStatus === 'flag'
+                  ? 'flag'
+                  : semanticStatus === 'minor'
+                    ? 'minor'
+                    : 'clear'
+              )
+            : 'minor',
+
+        findings: [
+
+          ...semanticFindings,
+
+          ...(semanticAvailable
+            ? [
+                `Real-photo semantic score: ${semanticRealScore.toFixed(1)}%.`,
+                `Synthetic semantic score: ${semanticSyntheticScore.toFixed(1)}%.`,
+                `Semantic margin: ${semanticMargin.toFixed(1)} points.`,
+              ]
+            : []),
+
+          ...semanticWarnings.map(
+            (warning: string) =>
+              `Warning: ${warning}`
+          ),
 
         ],
       },
@@ -1018,6 +1122,7 @@ const c2paClaimGenerator =
 
         ],
       },
+
 
     ],
   }
