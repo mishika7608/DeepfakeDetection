@@ -5,6 +5,7 @@ import {
   ScanFace,
   Telescope,
   ShieldCheck,
+  BadgeCheck,
   SlidersHorizontal,
   FileText,
   SearchCheck,
@@ -29,7 +30,7 @@ export type SignalKey =
   | 'attribute'
   | 'metadata'
   | 'reverse-search'
-
+  | 'c2pa'
 
 export interface AnalysisSignal {
   key: SignalKey
@@ -110,6 +111,13 @@ export const SIGNAL_LIBRARY: {
     icon: SearchCheck,
     summary:
       'Searches indexed online images for exact or visually similar sources and possible provenance.',
+  },
+  {
+    key: 'c2pa',
+    label: 'C2PA Content Credentials',
+    icon: BadgeCheck,
+    summary:
+      'Checks cryptographically bound Content Credentials and provenance information embedded in the image.',
   },
 ]
 
@@ -192,6 +200,7 @@ export function getMockAnalysis(): AnalysisResult {
         'Original capture timestamp is intact; no signs of tampering.',
       ],
     },
+
   ]
 
   return {
@@ -730,6 +739,51 @@ export async function getDetectorAnalysis(
   }
 
   // =====================================================
+// C2PA
+// =====================================================
+
+const c2pa =
+  payload.c2pa ?? {}
+
+const c2paAvailable =
+  Boolean(c2pa.available)
+
+const c2paPresent =
+  Boolean(c2pa.has_manifest)
+
+const c2paStatus =
+  c2pa.status ??
+  'not_present'
+
+const c2paValidationState =
+  c2pa.validation_state ??
+  null
+
+const c2paFindings =
+  Array.isArray(c2pa.findings)
+    ? c2pa.findings
+    : []
+
+const c2paWarnings =
+  Array.isArray(c2pa.warnings)
+    ? c2pa.warnings
+    : []
+
+const c2paActions =
+  Array.isArray(c2pa.actions)
+    ? c2pa.actions
+    : []
+
+const c2paIngredients =
+  Array.isArray(c2pa.ingredients)
+    ? c2pa.ingredients
+    : []
+
+const c2paClaimGenerator =
+  c2pa.claim_generator ??
+  null
+
+  // =====================================================
   // MAIN RISK
   // =====================================================
 
@@ -892,6 +946,77 @@ export async function getDetectorAnalysis(
         findings:
           reverseEvidence,
 
+      },
+      {
+        key: 'c2pa',
+
+        label: 'C2PA Content Credentials',
+
+        icon: BadgeCheck,
+
+        summary:
+          SIGNAL_LIBRARY[7].summary,
+
+        /*
+        * IMPORTANT:
+        *
+        * C2PA is provenance evidence.
+        * It is NOT another deepfake probability.
+        *
+        * Therefore we don't modify result.score.
+        */
+
+        score:
+          c2paPresent
+            ? 100
+            : 0,
+
+        status:
+          c2paPresent
+            ? (
+                c2paValidationState &&
+                String(c2paValidationState)
+                  .toLowerCase()
+                  .includes('invalid')
+                  ? 'flag'
+                  : 'clear'
+              )
+            : 'minor',
+
+        findings: [
+
+          ...c2paFindings,
+
+          ...(c2paClaimGenerator
+            ? [
+                `Claim generator: ${c2paClaimGenerator}.`,
+              ]
+            : []),
+
+          ...(c2paValidationState
+            ? [
+                `Validation state: ${c2paValidationState}.`,
+              ]
+            : []),
+
+          ...(c2paActions.length
+            ? [
+                `Recorded provenance actions: ${c2paActions.length}.`,
+              ]
+            : []),
+
+          ...(c2paIngredients.length
+            ? [
+                `Provenance ingredients: ${c2paIngredients.length}.`,
+              ]
+            : []),
+
+          ...c2paWarnings.map(
+            (warning: string) =>
+              `Warning: ${warning}`
+          ),
+
+        ],
       },
 
     ],

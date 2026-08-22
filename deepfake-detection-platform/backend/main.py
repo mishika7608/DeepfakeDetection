@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from retinaface.pre_trained_models import get_model
 from reverse_search import reverse_search
 from metadata import analyze_metadata
+from c2pa_analysis import analyze_c2pa
 
 ROOT = Path(__file__).resolve().parents[2]
 INFERENCE_DIR = ROOT / "SelfBlendedImages-master" / "src" / "inference"
@@ -206,6 +207,34 @@ async def analyze(file: UploadFile = File(...)) -> dict[str, object]:
                     "available for images only."
                 ],
                 "error": None,
+            }
+
+        # ==================================================
+        # 3. C2PA CONTENT CREDENTIALS
+        # ==================================================
+
+        if media_type.startswith("image/"):
+
+            c2pa_result = analyze_c2pa(
+                temporary_path
+            )
+
+        else:
+
+            c2pa_result = {
+                "available": False,
+                "status": "unsupported_media",
+                "has_manifest": False,
+                "validation_state": None,
+                "claim_generator": None,
+                "title": None,
+                "actions": [],
+                "ingredients": [],
+                "findings": [
+                    "C2PA analysis is currently available "
+                    "for images only."
+                ],
+                "warnings": [],
             }
 
         # ==================================================
