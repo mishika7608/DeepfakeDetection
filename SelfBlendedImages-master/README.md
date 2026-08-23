@@ -129,14 +129,4 @@ src/configs/sbi/base.json \
 ```
 Top five checkpoints will be saved in `./output/` folder. As described in our paper, we use the latest one for evaluations.
 
-# Citation
-If you find our work useful for your research, please consider citing our paper:
-```bibtex
-@inproceedings{shiohara2022detecting,
-  title={Detecting Deepfakes with Self-Blended Images},
-  author={Shiohara, Kaede and Yamasaki, Toshihiko},
-  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
-  pages={18720--18729},
-  year={2022}
-}
 ```
