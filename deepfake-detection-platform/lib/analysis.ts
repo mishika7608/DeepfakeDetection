@@ -39,6 +39,47 @@ export interface AnalysisSignal {
 
 export type RiskLevel = 'low' | 'moderate' | 'elevated'
 
+export const RISK_COPY: Record<
+  RiskLevel,
+  {
+    label: string
+    description: string
+  }
+> = {
+  low: {
+    label: 'Low Risk',
+    description: 'The available evidence is consistent with an authentic image.',
+  },
+
+  moderate: {
+    label: 'Moderate Risk',
+    description: 'Some signals require additional review.',
+  },
+
+  elevated: {
+    label: 'Elevated Risk',
+    description: 'Multiple signals indicate possible manipulation.',
+  },
+}
+
+export function statusColor(
+  status: SignalStatus
+): string {
+  switch (status) {
+    case 'flag':
+      return 'text-red-500'
+
+    case 'minor':
+      return 'text-amber-500'
+
+    case 'clear':
+      return 'text-emerald-500'
+
+    default:
+      return 'text-muted-foreground'
+  }
+}
+
 export interface AnalysisResult {
   /** overall authenticity confidence, 0–100 */
   score: number
@@ -216,290 +257,6 @@ export function getMockAnalysis(): AnalysisResult {
   }
 }
 
-
-/** Calls the local SelfBlendedImages service and adapts its score for the UI. */
-// export async function getDetectorAnalysis(file: File): Promise<AnalysisResult> {
-//   const form = new FormData()
-//   form.append('file', file)
-//   const baseUrl = process.env.NEXT_PUBLIC_DETECTOR_API_URL ?? 'http://localhost:8000'
-//   const response = await fetch(`${baseUrl}/analyze`, { method: 'POST', body: form })
-//   const payload = await response.json().catch(() => ({}))
-//   if (!response.ok) throw new Error(payload.detail ?? 'The detector service is unavailable.')
-//   const score = payload.authenticity as number
-//   const fake = payload.fakeness as number
-//   const flagged = fake >= 0.5
-//   return {
-//     score,
-//     risk: fake >= 0.7 ? 'elevated' : fake >= 0.4 ? 'moderate' : 'low',
-//     verdict: flagged ? 'Possible deepfake detected' : 'Likely authentic',
-//     summary: `SelfBlendedImages analyzed the detected face${file.type.startsWith('video/') ? 's across sampled frames' : ''}. This score is a model estimate, not a definitive determination.`,
-//     signals: [{
-//       key: 'ai-generation', label: 'SelfBlendedImages detector', icon: Sparkles,
-//       summary: SIGNAL_LIBRARY[0].summary, score, status: flagged ? 'flag' : 'clear',
-//       findings: [`SBI fakeness score: ${(fake * 100).toFixed(1)}%.`, flagged ? 'The detector found manipulation-like facial artifacts.' : 'The detector found no strong facial manipulation artifacts.'],
-//     }],
-//   }
-// }
-
-// export async function getDetectorAnalysis(
-//   file: File
-// ): Promise<AnalysisResult> {
-
-//   const form = new FormData()
-
-//   form.append('file', file)
-
-//   const baseUrl =
-//     process.env.NEXT_PUBLIC_DETECTOR_API_URL ??
-//     'http://localhost:8000'
-
-//   const response = await fetch(
-//     `${baseUrl}/analyze`,
-//     {
-//       method: 'POST',
-//       body: form,
-//     }
-//   )
-
-//   const payload = await response
-//     .json()
-//     .catch(() => ({}))
-
-//   if (!response.ok) {
-//     throw new Error(
-//       payload.detail ??
-//       'The detector service is unavailable.'
-//     )
-//   }
-
-//   // =====================================================
-//   // EXISTING SBI RESULT
-//   // =====================================================
-
-//   const score =
-//     Number(payload.authenticity ?? 0)
-
-//   const fake =
-//     Number(payload.fakeness ?? 0)
-
-//   // =====================================================
-//   // METADATA RESULT
-//   // =====================================================
-
-//   const metadata =
-//     payload.metadata ?? {}
-
-//   const metadataRisk =
-//     Number(metadata.risk_score ?? 0)
-
-//   const metadataFindings =
-//     Array.isArray(metadata.findings)
-//       ? metadata.findings
-//       : []
-
-//   const metadataWarnings =
-//     Array.isArray(metadata.warnings)
-//       ? metadata.warnings
-//       : []
-
-//   // =====================================================
-//   // FORENSIC RESULT
-//   // =====================================================
-
-//   const forensic =
-//     payload.forensic_analysis ?? {}
-
-//   const finalAuthenticity =
-//     Number(
-//       forensic.final_authenticity ??
-//       score
-//     )
-
-//   const finalRisk =
-//     Number(
-//       forensic.final_risk ??
-//       (100 - score)
-//     )
-
-//   // =====================================================
-//   // SBI STATUS
-//   // =====================================================
-
-//   const aiFlagged =
-//     fake >= 0.5
-
-//   const aiStatus: SignalStatus =
-//     fake >= 0.7
-//       ? 'flag'
-//       : fake >= 0.4
-//         ? 'minor'
-//         : 'clear'
-
-//   // =====================================================
-//   // METADATA STATUS
-//   // =====================================================
-
-//   const metadataStatus: SignalStatus =
-//     metadataRisk >= 50
-//       ? 'flag'
-//       : metadataRisk >= 20
-//         ? 'minor'
-//         : 'clear'
-
-//   // =====================================================
-//   // METADATA FINDINGS FOR UI
-//   // =====================================================
-
-//   const formattedMetadataFindings = [
-//     ...metadataFindings,
-//     ...metadataWarnings.map(
-//       (warning: string) =>
-//         `Warning: ${warning}`
-//     ),
-//   ]
-
-//   if (formattedMetadataFindings.length === 0) {
-//     formattedMetadataFindings.push(
-//       'No significant metadata findings were detected.'
-//     )
-//   }
-
-//   // =====================================================
-//   // FINAL RISK
-//   // =====================================================
-
-//   const risk: RiskLevel =
-//     finalRisk >= 70
-//       ? 'elevated'
-//       : finalRisk >= 40
-//         ? 'moderate'
-//         : 'low'
-
-//   // =====================================================
-//   // VERDICT
-//   // =====================================================
-
-//   const verdict =
-//     finalRisk >= 70
-//       ? 'Possible manipulation detected'
-//       : finalRisk >= 40
-//         ? 'Requires further review'
-//         : 'Likely authentic'
-
-//   // =====================================================
-//   // SUMMARY
-//   // =====================================================
-
-//   const summary =
-//     `AI detection estimates ${score.toFixed(1)}% authenticity. ` +
-//     `Metadata analysis reports ${metadataRisk.toFixed(0)}% metadata risk. ` +
-//     `The combined forensic assessment estimates ` +
-//     `${finalAuthenticity.toFixed(1)}% authenticity.`
-
-//   // =====================================================
-//   // RETURN UI MODEL
-//   // =====================================================
-
-//   return {
-
-//     // IMPORTANT:
-//     // The main meter now represents the
-//     // combined forensic authenticity.
-//     score: finalAuthenticity,
-
-//     risk,
-
-//     verdict,
-
-//     summary,
-
-//     signals: [
-
-//       // -------------------------------------------------
-//       // AI DETECTION
-//       // -------------------------------------------------
-
-//       {
-//         key: 'ai-generation',
-
-//         label: 'SelfBlendedImages detector',
-
-//         icon: Sparkles,
-
-//         summary:
-//           SIGNAL_LIBRARY[0].summary,
-
-//         score,
-
-//         status: aiStatus,
-
-//         findings: [
-
-//           `SBI fakeness score: ${(fake * 100).toFixed(1)}%.`,
-
-//           aiFlagged
-//             ? 'The detector found manipulation-like facial artifacts.'
-//             : 'The detector found no strong facial manipulation artifacts.',
-
-//           `AI model authenticity: ${score.toFixed(1)}%.`,
-
-//         ],
-
-//       },
-
-//       // -------------------------------------------------
-//       // METADATA
-//       // -------------------------------------------------
-
-//       {
-//         key: 'metadata',
-
-//         label: 'Metadata analysis',
-
-//         icon: FileText,
-
-//         summary:
-//           'Reviews capture data, software traces, timestamps, and file information for forensic indicators.',
-
-//         // Signal score is authenticity,
-//         // so convert metadata risk → authenticity.
-//         score: Math.max(
-//           0,
-//           Math.min(
-//             100,
-//             100 - metadataRisk
-//           )
-//         ),
-
-//         status: metadataStatus,
-
-//         findings: [
-
-//           `Metadata risk: ${metadataRisk.toFixed(0)}%.`,
-
-//           ...formattedMetadataFindings,
-
-//           metadata.format
-//             ? `File format: ${metadata.format}.`
-//             : '',
-
-//           metadata.width && metadata.height
-//             ? `Dimensions: ${metadata.width} × ${metadata.height}.`
-//             : '',
-
-//         ].filter(Boolean),
-
-//       },
-
-//     ],
-
-//   }
-// }
-
-/**
- * Calls the local SelfBlendedImages service and adapts
- * AI + metadata + reverse-search results for the UI.
- */
 export async function getDetectorAnalysis(
   file: File
 ): Promise<AnalysisResult> {
@@ -529,7 +286,6 @@ export async function getDetectorAnalysis(
       .catch(() => ({}))
 
   if (!response.ok) {
-
     throw new Error(
       payload.detail ??
       'The detector service is unavailable.'
@@ -537,10 +293,10 @@ export async function getDetectorAnalysis(
   }
 
   // =====================================================
-  // AI / SBI
+  // 1. SBI / AI DETECTOR
   // =====================================================
 
-  const score =
+  const aiScore =
     Number(
       payload.authenticity ?? 0
     )
@@ -550,11 +306,46 @@ export async function getDetectorAnalysis(
       payload.fakeness ?? 0
     )
 
-  const flagged =
+  const aiFlagged =
     fake >= 0.5
 
+  const aiStatus: SignalStatus =
+    fake >= 0.7
+      ? 'flag'
+      : fake >= 0.4
+        ? 'minor'
+        : 'clear'
+
+
   // =====================================================
-  // METADATA
+  // 2. FUSED SCORE
+  // =====================================================
+
+  /*
+   * Backend calculates:
+   *
+   * 90% SBI
+   * 10% Semantic analysis
+   *
+   * Keep the fallback so the frontend does not break
+   * if an older backend response is received.
+   */
+
+  const overallScore =
+    Number(
+      payload.overall_authenticity ??
+      aiScore
+    )
+
+  const overallRisk =
+    Number(
+      payload.overall_risk ??
+      (100 - overallScore)
+    )
+
+
+  // =====================================================
+  // 3. METADATA
   // =====================================================
 
   const metadata =
@@ -578,6 +369,8 @@ export async function getDetectorAnalysis(
     )
       ? metadata.warnings
       : []
+
+
 
   // =====================================================
   // REVERSE SEARCH
@@ -741,151 +534,160 @@ export async function getDetectorAnalysis(
     )
   }
 
-  // =====================================================
-// C2PA
-// =====================================================
-
-const c2pa =
-  payload.c2pa ?? {}
-
-const c2paAvailable =
-  Boolean(c2pa.available)
-
-const c2paPresent =
-  Boolean(c2pa.has_manifest)
-
-const c2paStatus =
-  c2pa.status ??
-  'not_present'
-
-const c2paValidationState =
-  c2pa.validation_state ??
-  null
-
-const c2paFindings =
-  Array.isArray(c2pa.findings)
-    ? c2pa.findings
-    : []
-
-const c2paWarnings =
-  Array.isArray(c2pa.warnings)
-    ? c2pa.warnings
-    : []
-
-const c2paActions =
-  Array.isArray(c2pa.actions)
-    ? c2pa.actions
-    : []
-
-const c2paIngredients =
-  Array.isArray(c2pa.ingredients)
-    ? c2pa.ingredients
-    : []
-
-const c2paClaimGenerator =
-  c2pa.claim_generator ??
-  null
 
   // =====================================================
-// SEMANTIC ANALYSIS
-// =====================================================
-
-const semantic =
-  payload.semantic ?? {}
-
-const semanticAvailable =
-  Boolean(
-    semantic.available
-  )
-
-const semanticScore =
-  Number(
-    semantic.semantic_score ?? 0
-  )
-
-const semanticRealScore =
-  Number(
-    semantic.real_score ?? 0
-  )
-
-const semanticSyntheticScore =
-  Number(
-    semantic.synthetic_score ?? 0
-  )
-
-const semanticMargin =
-  Number(
-    semantic.margin ?? 0
-  )
-
-const semanticFindings =
-  Array.isArray(
-    semantic.findings
-  )
-    ? semantic.findings
-    : []
-
-const semanticWarnings =
-  Array.isArray(
-    semantic.warnings
-  )
-    ? semantic.warnings
-    : []
-
-const semanticStatus =
-  semantic.status ??
-  'clear'
-
-  // =====================================================
-  // MAIN RISK
+  // 5. C2PA
   // =====================================================
 
-  // IMPORTANT:
-  //
-  // Keep the main authenticity score tied to the
-  // trained SBI detector.
-  //
-  // Reverse search is evidence/provenance, not a
-  // replacement for the trained model's probability.
+  const c2pa =
+    payload.c2pa ?? {}
+
+  const c2paPresent =
+    Boolean(
+      c2pa.has_manifest
+    )
+
+  const c2paValidationState =
+    c2pa.validation_state ??
+    null
+
+  const c2paFindings =
+    Array.isArray(
+      c2pa.findings
+    )
+      ? c2pa.findings
+      : []
+
+  const c2paWarnings =
+    Array.isArray(
+      c2pa.warnings
+    )
+      ? c2pa.warnings
+      : []
+
+  const c2paActions =
+    Array.isArray(
+      c2pa.actions
+    )
+      ? c2pa.actions
+      : []
+
+  const c2paIngredients =
+    Array.isArray(
+      c2pa.ingredients
+    )
+      ? c2pa.ingredients
+      : []
+
+  const c2paClaimGenerator =
+    c2pa.claim_generator ??
+    null
+
+
+  // =====================================================
+  // 6. SEMANTIC ANALYSIS
+  // =====================================================
+
+  const semantic =
+    payload.semantic ?? {}
+
+  const semanticAvailable =
+    Boolean(
+      semantic.available
+    )
+
+  const semanticScore =
+    Number(
+      semantic.semantic_score ?? 0
+    )
+
+  const semanticRealScore =
+    Number(
+      semantic.real_score ?? 0
+    )
+
+  const semanticSyntheticScore =
+    Number(
+      semantic.synthetic_score ?? 0
+    )
+
+  const semanticMargin =
+    Number(
+      semantic.margin ?? 0
+    )
+
+  const semanticFindings =
+    Array.isArray(
+      semantic.findings
+    )
+      ? semantic.findings
+      : []
+
+  const semanticWarnings =
+    Array.isArray(
+      semantic.warnings
+    )
+      ? semantic.warnings
+      : []
+
+  const semanticStatus =
+    semantic.status ??
+    'clear'
+
+
+  // =====================================================
+  // 7. OVERALL RISK
+  // =====================================================
 
   const risk: RiskLevel =
-    fake >= 0.7
+    overallRisk >= 70
       ? 'elevated'
-      : fake >= 0.4
+      : overallRisk >= 40
         ? 'moderate'
         : 'low'
 
-  const verdict =
-    flagged
-      ? 'Possible deepfake detected'
-      : 'Likely authentic'
-
-  // const summary =
-  //   `SelfBlendedImages estimated ${score.toFixed(1)}% authenticity. ` +
-  //   `Metadata analysis returned ${metadataFindings.length} finding(s). ` +
-  //   `Reverse image search identified ` +
-  //   `${exactMatches.length} exact/near-exact and ` +
-  //   `${visualMatches.length} visual match(es). ` +
-  //   `These auxiliary signals provide forensic context and do not replace the AI model score.`
-
-const summary =
-  `SelfBlendedImages estimated ${score.toFixed(1)}% authenticity. ` +
-  `Metadata analysis returned ${metadataFindings.length} finding(s). ` +
-  `Reverse image search identified ` +
-  `${exactMatches.length} exact/near-exact and ` +
-  `${visualMatches.length} visual match(es). ` +
-  `Semantic analysis estimated ` +
-  `${semanticScore.toFixed(1)}% real-photo semantic compatibility. ` +
-  `These auxiliary signals provide forensic context and do not replace the AI model score.`
 
   // =====================================================
-  // RETURN RESULT
+  // 8. OVERALL VERDICT
+  // =====================================================
+
+  const verdict =
+    overallRisk >= 70
+      ? 'Possible deepfake detected'
+      : overallRisk >= 40
+        ? 'Requires further review'
+        : 'Likely authentic'
+
+
+  // =====================================================
+  // 9. SUMMARY
+  // =====================================================
+
+  const summary =
+    `Overall authenticity is ${overallScore.toFixed(1)}%. ` +
+    `SBI contributed ${aiScore.toFixed(1)}% and semantic analysis ` +
+    `contributed ${semanticScore.toFixed(1)}%. ` +
+    `The fused score uses 90% SBI and 10% semantic analysis. ` +
+    `Metadata returned ${metadataFindings.length} finding(s).`
+
+
+  // =====================================================
+  // 10. RETURN RESULT
   // =====================================================
 
   return {
 
-    // Keep this equal to the actual SBI model result.
-    score,
+    /*
+     * IMPORTANT:
+     *
+     * This is now the score displayed by the dashboard.
+     *
+     * It comes from:
+     *
+     * 90% SBI + 10% Semantic
+     */
+    score:
+      overallScore,
 
     risk,
 
@@ -896,51 +698,62 @@ const summary =
     signals: [
 
       // =================================================
-      // 1. AI DETECTION
+      // AI / SBI
       // =================================================
 
       {
         key: 'ai-generation',
 
-        label: 'SelfBlendedImages detector',
+        label:
+          'SelfBlendedImages detector',
 
-        icon: Sparkles,
+        icon:
+          Sparkles,
 
         summary:
-          // SIGNAL_LIBRARY[0].summary,
-          SIGNAL_BY_KEY['ai-generation'].summary,
+          SIGNAL_BY_KEY[
+            'ai-generation'
+          ].summary,
 
-        score,
+        /*
+         * IMPORTANT:
+         * This card shows the RAW SBI score.
+         * It does NOT show the fused score.
+         */
+
+        score:
+          aiScore,
 
         status:
-          flagged
-            ? 'flag'
-            : 'clear',
+          aiStatus,
 
         findings: [
 
           `SBI fakeness score: ${(fake * 100).toFixed(1)}%.`,
 
-          flagged
+          aiFlagged
             ? 'The detector found manipulation-like facial artifacts.'
             : 'The detector found no strong facial manipulation artifacts.',
 
-          `AI model authenticity: ${score.toFixed(1)}%.`,
+          `AI model authenticity: ${aiScore.toFixed(1)}%.`,
 
         ],
+
       },
 
-      
+
       // =================================================
-      // 5. SEMANTIC ANALYSIS
+      // SEMANTIC
       // =================================================
 
       {
         key: 'semantic',
 
-        label: 'Semantic analysis',
+        label:
+          'Semantic analysis',
 
-        icon: Telescope,
+        icon:
+          Telescope,
 
         summary:
           SIGNAL_BY_KEY.semantic.summary,
@@ -970,6 +783,7 @@ const summary =
                 `Real-photo semantic score: ${semanticRealScore.toFixed(1)}%.`,
                 `Synthetic semantic score: ${semanticSyntheticScore.toFixed(1)}%.`,
                 `Semantic margin: ${semanticMargin.toFixed(1)} points.`,
+                'Semantic analysis contributes 10% to the overall authenticity score.',
               ]
             : []),
 
@@ -979,25 +793,26 @@ const summary =
           ),
 
         ],
+
       },
 
+
       // =================================================
-      // 2. METADATA
+      // METADATA
       // =================================================
 
       {
         key: 'metadata',
 
-        label: 'Metadata',
+        label:
+          'Metadata',
 
-        icon: FileText,
+        icon:
+          FileText,
 
         summary:
-          // SIGNAL_LIBRARY[5].summary,
           SIGNAL_BY_KEY.metadata.summary,
 
-        // Metadata risk converted to an
-        // authenticity-style signal score.
         score:
           Math.max(
             0,
@@ -1026,28 +841,29 @@ const summary =
           ),
 
         ],
+
       },
 
+
       // =================================================
-      // 3. REVERSE IMAGE SEARCH
+      // REVERSE SEARCH
       // =================================================
 
       {
-        key: 'reverse-search',
+        key:
+          'reverse-search',
 
-        label: 'Reverse image search',
+        label:
+          'Reverse image search',
 
-        icon: SearchCheck,
+        icon:
+          SearchCheck,
 
         summary:
-          // SIGNAL_LIBRARY[6].summary,
-          SIGNAL_BY_KEY['reverse-search'].summary,
+          SIGNAL_BY_KEY[
+            'reverse-search'
+          ].summary,
 
-        // This is an evidence signal.
-        //
-        // We don't claim that a web match means
-        // "authentic". Instead, we display evidence
-        // availability.
         score:
           exactMatches.length > 0
             ? 100
@@ -1064,25 +880,29 @@ const summary =
           reverseEvidence,
 
       },
+
+
+      // =================================================
+      // C2PA
+      // =================================================
+
       {
-        key: 'c2pa',
+        key:
+          'c2pa',
 
-        label: 'C2PA Content Credentials',
+        label:
+          'C2PA Content Credentials',
 
-        icon: BadgeCheck,
+        icon:
+          BadgeCheck,
 
         summary:
-          // SIGNAL_LIBRARY[7].summary,
           SIGNAL_BY_KEY.c2pa.summary,
 
         /*
-        * IMPORTANT:
-        *
-        * C2PA is provenance evidence.
-        * It is NOT another deepfake probability.
-        *
-        * Therefore we don't modify result.score.
-        */
+         * C2PA is provenance evidence.
+         * It does NOT alter the fused score.
+         */
 
         score:
           c2paPresent
@@ -1093,7 +913,9 @@ const summary =
           c2paPresent
             ? (
                 c2paValidationState &&
-                String(c2paValidationState)
+                String(
+                  c2paValidationState
+                )
                   .toLowerCase()
                   .includes('invalid')
                   ? 'flag'
@@ -1119,13 +941,13 @@ const summary =
 
           ...(c2paActions.length
             ? [
-                `Recorded provenance actions: ${c2paActions.length}.`,
+                `C2PA actions detected: ${c2paActions.length}.`,
               ]
             : []),
 
           ...(c2paIngredients.length
             ? [
-                `Provenance ingredients: ${c2paIngredients.length}.`,
+                `C2PA ingredients detected: ${c2paIngredients.length}.`,
               ]
             : []),
 
@@ -1135,56 +957,10 @@ const summary =
           ),
 
         ],
+
       },
 
-
     ],
-  }
-}
 
-
-
-
-export const RISK_COPY: Record<
-  RiskLevel,
-  { label: string; note: string }
-> = {
-  low: {
-    label: 'Low risk',
-    note: 'Signals point toward authentic media.',
-  },
-  moderate: {
-    label: 'Some signals to review',
-    note: 'A few areas are worth a closer look.',
-  },
-  elevated: {
-    label: 'Signs of manipulation',
-    note: 'Several signals suggest this media was altered.',
-  },
-}
-
-export function statusColor(status: SignalStatus) {
-  switch (status) {
-    case 'clear':
-      return {
-        dot: 'bg-sage',
-        text: 'text-sage-foreground',
-        soft: 'bg-sage/15',
-        label: 'Clear',
-      }
-    case 'minor':
-      return {
-        dot: 'bg-lavender',
-        text: 'text-lavender-foreground',
-        soft: 'bg-lavender/15',
-        label: 'Minor note',
-      }
-    case 'flag':
-      return {
-        dot: 'bg-destructive',
-        text: 'text-destructive',
-        soft: 'bg-destructive/10',
-        label: 'Needs attention',
-      }
   }
 }

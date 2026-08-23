@@ -62,29 +62,30 @@ def analyse(path: str, is_video: bool) -> float:
 
 def calculate_forensic_score(
     ai_authenticity: float,
-    metadata_risk: float,
+    semantic_score: float,
 ) -> dict[str, float]:
     """
-    Combine the trained AI detector with metadata evidence.
+    Calculate the overall authenticity score.
 
-    The SBI model remains the primary signal.
-    Metadata contributes only 20%.
+    SBI = 90%
+    Semantic analysis = 10%
+
+    SBI remains the primary deepfake detector.
+    Semantic analysis is a supporting signal.
     """
 
-    ai_risk = 100.0 - ai_authenticity
-
-    final_risk = (
-        0.80 * ai_risk +
-        0.20 * metadata_risk
-    )
-
-    final_risk = round(
-        max(0.0, min(100.0, final_risk)),
-        1,
+    final_authenticity = (
+        0.70 * ai_authenticity
+        + 0.30 * semantic_score
     )
 
     final_authenticity = round(
-        100.0 - final_risk,
+        max(0.0, min(100.0, final_authenticity)),
+        1,
+    )
+
+    final_risk = round(
+        100.0 - final_authenticity,
         1,
     )
 
@@ -92,6 +93,7 @@ def calculate_forensic_score(
         "final_risk": final_risk,
         "final_authenticity": final_authenticity,
     }
+
 
 
 @app.get("/health")
@@ -265,6 +267,23 @@ async def analyze(file: UploadFile = File(...)) -> dict[str, object]:
                 "warnings": [],
             }
 
+
+        # ==================================================
+        # 5. FUSED AUTHENTICITY SCORE
+        # ==================================================
+
+        semantic_score = float(
+            semantic_result.get(
+                "semantic_score",
+                0.0
+            )
+        )
+
+        forensic_score = calculate_forensic_score(
+            ai_authenticity=authenticity,
+            semantic_score=semantic_score,
+        )
+        
         # ==================================================
         # 5. RETURN EVERYTHING
         # ==================================================
@@ -281,6 +300,17 @@ async def analyze(file: UploadFile = File(...)) -> dict[str, object]:
             ),
 
             "authenticity": authenticity,
+            # ==================================================
+            # FUSED SCORE
+            # ==================================================
+
+            "overall_authenticity": forensic_score[
+                "final_authenticity"
+            ],
+
+            "overall_risk": forensic_score[
+                "final_risk"
+            ],
 
             # ==================================================
             # FORENSIC SIGNALS
@@ -302,145 +332,3 @@ async def analyze(file: UploadFile = File(...)) -> dict[str, object]:
         ).unlink(
             missing_ok=True
         )
-# @app.post("/analyze")
-# async def analyze(file: UploadFile = File(...)) -> dict[str, object]:
-
-#     media_type = file.content_type or ""
-
-#     if not (
-#         media_type.startswith("image/")
-#         or media_type.startswith("video/")
-#     ):
-#         raise HTTPException(
-#             415,
-#             "Upload an image or video file."
-#         )
-
-#     suffix = (
-#         Path(file.filename or "upload").suffix
-#         or (
-#             ".mp4"
-#             if media_type.startswith("video/")
-#             else ".jpg"
-#         )
-#     )
-
-#     with tempfile.NamedTemporaryFile(
-#         suffix=suffix,
-#         delete=False
-#     ) as temporary:
-
-#         temporary.write(await file.read())
-
-#         temporary_path = temporary.name
-
-#     try:
-
-#         # =====================================================
-#         # 1. EXISTING SELFBLENDEDIMAGES MODEL
-#         # =====================================================
-
-#         fakeness = analyse(
-#             temporary_path,
-#             media_type.startswith("video/")
-#         )
-
-#         ai_authenticity = round(
-#             (1 - fakeness) * 100,
-#             1
-#         )
-
-#         # =====================================================
-#         # 2. METADATA ANALYSIS
-#         # =====================================================
-
-#         # Metadata is meaningful for images.
-#         # For videos we safely skip it for now.
-#         if media_type.startswith("image/"):
-
-#             metadata = analyze_metadata(
-#                 temporary_path
-#             )
-
-#         else:
-
-#             metadata = {
-#                 "available": False,
-#                 "format": None,
-#                 "width": None,
-#                 "height": None,
-#                 "mode": None,
-#                 "sha256": None,
-#                 "exif": {},
-#                 "findings": [
-#                     "Metadata analysis is currently available for images only."
-#                 ],
-#                 "warnings": [],
-#                 "risk_score": 0,
-#             }
-
-#         # =====================================================
-#         # 3. EVIDENCE FUSION
-#         # =====================================================
-
-#         forensic = calculate_forensic_score(
-#             ai_authenticity=ai_authenticity,
-#             metadata_risk=float(
-#                 metadata.get("risk_score", 0)
-#             ),
-#         )
-
-#         # =====================================================
-#         # 4. FINAL API RESPONSE
-#         # =====================================================
-
-#         return {
-
-#             # Original SBI values
-#             "fakeness": round(fakeness, 4),
-
-#             "authenticity": ai_authenticity,
-
-#             # Metadata findings
-#             "metadata": metadata,
-
-#             # Combined forensic assessment
-#             "forensic_analysis": {
-
-#                 "metadata_risk": metadata.get(
-#                     "risk_score",
-#                     0
-#                 ),
-
-#                 "final_risk": forensic[
-#                     "final_risk"
-#                 ],
-
-#                 "final_authenticity": forensic[
-#                     "final_authenticity"
-#                 ],
-
-#             },
-#         }
-
-#     finally:
-
-#         Path(
-#             temporary_path
-#         ).unlink(
-#             missing_ok=True
-#         )
-
-# @app.post("/analyze")
-# async def analyze(file: UploadFile = File(...)) -> dict[str, object]:
-#     media_type = file.content_type or ""
-#     if not (media_type.startswith("image/") or media_type.startswith("video/")):
-#         raise HTTPException(415, "Upload an image or video file.")
-#     suffix = Path(file.filename or "upload").suffix or (".mp4" if media_type.startswith("video/") else ".jpg")
-#     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temporary:
-#         temporary.write(await file.read()); temporary_path = temporary.name
-#     try:
-#         fakeness = analyse(temporary_path, media_type.startswith("video/"))
-#         return {"fakeness": round(fakeness, 4), "authenticity": round((1 - fakeness) * 100, 1)}
-#     finally:
-#         Path(temporary_path).unlink(missing_ok=True)
