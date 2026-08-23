@@ -1,18 +1,28 @@
-# SelfBlendedImages inference service (CPU or CUDA PyTorch installation)
+# SelfBlendedImages inference service
 fastapi>=0.115,<1
 uvicorn[standard]>=0.30,<1
 python-multipart>=0.0.9
+
+# Existing working ML stack
 torch==2.13.0
 torchvision==0.28.0
+
 numpy>=1.26
 opencv-python>=4.10
 Pillow>=10
 tqdm>=4.66
 efficientnet-pytorch>=0.7.1
 albumentations>=1.4
-Pillow
+
+# Semantic analysis
 transformers>=4.50
+
+# C2PA
 c2pa-python>=0.37.5
+
+# Reverse image search
 requests
-# Install this after the main requirements with --no-deps; its published metadata
-# pins an obsolete Torch release despite working with the pinned stack above.
+python-dotenv
+
+# RetinaFace is installed separately with --no-deps
+# because its published dependency metadata pins an obsolete Torch release.
