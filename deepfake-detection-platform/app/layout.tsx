@@ -17,9 +17,9 @@ const fraunces = Fraunces({
 })
 
 export const metadata: Metadata = {
-  title: 'Vera — Understand what you are looking at',
+  title: 'Vindicate — Understand what you are looking at',
   description:
-    'Vera helps you analyze images and media for signs of manipulation, synthetic generation, and identity inconsistencies. A calm, private way to understand what is real.',
+    'Vindicate helps you analyze images and media for signs of manipulation, synthetic generation, and identity inconsistencies. A calm, private way to understand what is real.',
   generator: 'v0.app',
   icons: {
     icon: [

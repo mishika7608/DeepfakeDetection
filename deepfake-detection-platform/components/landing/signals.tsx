@@ -16,7 +16,7 @@ export function Signals() {
           </Reveal>
           <Reveal delay={0.08}>
             <p className="text-base leading-relaxed text-muted-foreground lg:pb-1">
-              No single test can tell the whole story. Vera weighs several
+              No single test can tell the whole story. Vindicate weighs several
               independent signals together, so a small quirk never becomes a
               false accusation — and real manipulation has nowhere to hide.
             </p>

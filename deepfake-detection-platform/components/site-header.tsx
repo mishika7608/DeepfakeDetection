@@ -11,12 +11,12 @@ export function SiteHeader() {
         <Link
           href="/"
           className="flex items-center gap-2.5 text-foreground"
-          aria-label="Vera home"
+          aria-label="Vindicate home"
         >
           <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <ShieldHalf className="size-[18px]" aria-hidden />
           </span>
-          <span className="font-serif text-lg tracking-tight">Vera</span>
+          <span className="font-serif text-lg tracking-tight">Vindicate</span>
         </Link>
 
         <nav

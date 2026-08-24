@@ -10,7 +10,7 @@ export function SiteFooter() {
             <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <ShieldHalf className="size-[18px]" aria-hidden />
             </span>
-            <span className="font-serif text-lg tracking-tight">Vera</span>
+            <span className="font-serif text-lg tracking-tight">Vindicate</span>
           </div>
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
             A calm, private way to understand whether the media in front of you is real.
@@ -44,7 +44,7 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-border/60">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-5 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <p>&copy; {new Date().getFullYear()} Vera. Built for peace of mind.</p>
+          <p>&copy; {new Date().getFullYear()} Vindicate. Built for peace of mind.</p>
           <p>Analysis is assistive and does not constitute a legal determination.</p>
         </div>
       </div>

@@ -13,6 +13,7 @@ Pillow>=10
 tqdm>=4.66
 efficientnet-pytorch>=0.7.1
 albumentations>=1.4
+retinaface_pytorch
 
 # Semantic analysis
 transformers>=4.50

@@ -32,7 +32,7 @@ export function Privacy() {
               Sensitive images deserve a quiet room.
             </h2>
             <p className="mt-5 max-w-md leading-relaxed text-ink-muted">
-              People bring Vera some of their most personal media. We treat that
+              People bring Vindicate some of their most personal media. We treat that
               trust as the product — privacy is the default, not a setting you
               have to find.
             </p>

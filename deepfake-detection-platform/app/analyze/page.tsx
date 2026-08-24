@@ -4,7 +4,7 @@ import { SiteFooter } from '@/components/site-footer'
 import { AnalyzeExperience } from '@/components/analyze/analyze-experience'
 
 export const metadata: Metadata = {
-  title: 'Analyze media — Vera',
+  title: 'Analyze media — Vindicate',
   description:
     'Upload a photo or video and understand its authenticity across six independent signals, explained in plain language.',
 }

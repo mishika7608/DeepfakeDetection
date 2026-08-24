@@ -112,7 +112,7 @@ function HeroVisual() {
         <div className="relative aspect-[4/5]">
           <Image
             src="/hero-portrait.png"
-            alt="A calm portrait being reviewed by Vera"
+            alt="A calm portrait being reviewed by Vindicate"
             fill
             priority
             sizes="(max-width: 1024px) 90vw, 420px"

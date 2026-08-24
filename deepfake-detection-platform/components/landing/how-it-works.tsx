@@ -10,7 +10,7 @@ const steps = [
   {
     icon: Waypoints,
     title: 'We read the signals',
-    body: 'Vera reviews the media across six independent signals, from generation traces to identity and metadata.',
+    body: 'Vindicate reviews the media across six independent signals, from generation traces to identity and metadata.',
   },
   {
     icon: HeartHandshake,
